@@ -57,6 +57,31 @@ resource "aws_s3_bucket_policy" "s3_bucket_policy" {
   })
 }
 
+# Create DynamoDB Policy (Optional)
+resource "aws_iam_policy" "dynamodb_policy" {
+  name        = "DynamoDBLockAccessPolicy"
+  description = "Policy for managing DynamoDB state locking"
+
+  policy = jsonencode({
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem"
+        ],
+        "Resource": "${aws_dynamodb_table.state_lock_table.arn}"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_user_policy_attachment" "dynamodb_policy_attachment" {
+  user       = aws_iam_user.terraform_user.name
+  policy_arn = aws_iam_policy.dynamodb_policy.arn
+}
+
 #dynamodb for state locking
 resource "aws_dynamodb_table" "state_lock_table" {
   name         = var.dynamodb_table_name
@@ -67,12 +92,6 @@ resource "aws_dynamodb_table" "state_lock_table" {
     name = "LockId"
     type = "S"
   }
-
-  ttl {
-    attribute_name = "TimeToExist"
-    enabled        = true
-  }
-
   lifecycle {
     prevent_destroy = true
   }
